@@ -11,14 +11,15 @@ def fetch_afisha_page():
 
 
 def get_movies_from_afisha(divs):
-    movie_titles = []
+    movies = []
     for div in divs:
         if 'class' in div.attrs and 'object' in div.get('class'):
             cinemas_count = len(div.table.tbody.find_all('tr'))
             block_divs = div.find_all('div')
             name = get_cinema_caption(block_divs)
-            movie_titles.append({'name': name, 'cinemas_count': cinemas_count})
-    return movie_titles
+            movies.append({'name': name, 'cinemas_count': cinemas_count})
+    return movies
+
 
 def get_cinema_caption(div_tags):
     for cinema_div in div_tags:
@@ -35,50 +36,58 @@ def parse_afisha_list(raw_html):
         return div_tags
 
 
-
 def fetch_movie_info(movie_title):
-    response = requests.get('http://api.kinopoisk.cf/searchFilms?keyword='+movie_title).json()
+    response = requests.get('http://api.kinopoisk.cf/searchFilms?keyword=' + movie_title).json()
     rating = response['searchFilms'][0].get('rating', None)
     try:
         rating = float(rating[0:3])
     except:
         if rating is not None:
-            rating = float(rating[:2])/10
+            rating = float(rating[:2]) / 10
         else:
             rating = 0
     return rating
+
 
 def sort_movies_by_rating(movies):
     movies.sort(key=lambda movie: movie['rating'], reverse=True)
     return movies
 
 
-def output_movies_to_console(movies):
-    for film in movies:
-        print(film['caption'], film['rating'], film['cinema_amount'])
+def output_movies_to_console(movies, films_number):
+    for film in movies[:films_number]:
+        print('Название -', film['caption'],
+              '- рейтинг -', film['rating'],
+              ' доступно кинотеатров -',
+              film['cinema_amount'])
 
 
 def get_full_info(movies):
     films = []
     for movie in movies:
-        films.append({'caption': movie['name'], 'rating': fetch_movie_info(movie['name']), 'cinema_amount': movie['cinemas_count']})
+        films.append({'caption': movie['name'], 'rating': fetch_movie_info(movie['name']),
+                      'cinema_amount': movie['cinemas_count']})
     return films
 
 
 def in_lots_of_cinemas(min_cinemas_amount, movies):
     films = []
     for movie in movies:
-        if int(movie['cinema_amount'])>min_cinemas_amount:
+        if int(movie['cinema_amount']) > min_cinemas_amount:
             films.append(movie)
     return films
 
 
 if __name__ == '__main__':
+    min_cinemas = int(input('В скольких кинотеатрах '
+                            '(минимум) должен идти фильм? --> '))
+    films_needed = int(input('Сколько фильмов вывести? --> '))
     html_page = fetch_afisha_page()
     html_page = 'page.html'
     page_div_tags = parse_afisha_list(html_page)
+    os.remove(html_page)
     afisha_movies = get_movies_from_afisha(page_div_tags)
     movies = get_full_info(afisha_movies)
     films = sort_movies_by_rating(movies)
-    movies = in_lots_of_cinemas(10, films)
-    output_movies_to_console(movies)
+    movies = in_lots_of_cinemas(min_cinemas, films)
+    output_movies_to_console(movies, films_needed)
